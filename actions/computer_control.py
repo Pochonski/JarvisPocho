@@ -1,6 +1,7 @@
 #computer_control.py
 import io
 import json
+import os
 import re
 import string
 import subprocess
@@ -132,6 +133,176 @@ def _random_data(data_type: str) -> str:
 
     return f"random_{data_type}_{random.randint(1000, 9999)}"
 
+# Mapping of Omarchy key names to hyprctl key symbols
+_HYPR_KEYS = {
+    "return": "Return", "enter": "Return", "space": "Space",
+    "tab": "Tab", "escape": "Escape", "backspace": "BackSpace",
+    "delete": "Delete", "up": "Up", "down": "Down", "left": "Left", "right": "Right",
+    "home": "Home", "end": "End", "pageup": "Page_Up", "pagedown": "Page_Down",
+    "f1": "F1", "f2": "F2", "f3": "F3", "f4": "F4", "f5": "F5", "f6": "F6",
+    "f7": "F7", "f8": "F8", "f9": "F9", "f10": "F10", "f11": "F11", "f12": "F12",
+}
+
+# Direct commands for SUPER+ shortcuts (bypass key simulation)
+_HOTKEY_COMMANDS = {
+    "SUPER+RETURN":     'uwsm-app -- xdg-terminal-exec --dir="$(omarchy-cmd-terminal-cwd)"',
+    "SUPER+SHIFT+RETURN": 'omarchy-launch-browser',
+    "SUPER+SHIFT+F":    'uwsm-app -- nautilus --new-window',
+    "SUPER+SHIFT+V":    'code',
+    "SUPER+SHIFT+B":    'omarchy-launch-browser',
+    "SUPER+SHIFT+M":    'omarchy-launch-or-focus spotify',
+    "SUPER+SHIFT+A":    'omarchy-launch-webapp "https://chatgpt.com"',
+    "SUPER+SHIFT+Y":    'omarchy-launch-webapp "https://youtube.com/"',
+    "SUPER+CTRL+V":      '~/.local/bin/cliphist-picker.sh',
+    "SUPER+T":          'uwsm-app -- xdg-terminal-exec',  # toggle tiling
+}
+
+def _exec_hotkey_command(keys_str: str) -> str:
+    """Ejecuta el comando directo asociado a un hotkey en background."""
+    cmd = _HOTKEY_COMMANDS.get(keys_str.upper())
+    if not cmd:
+        return None
+    try:
+        subprocess.run(
+            ["bash", "-c", f"{cmd} &>/dev/null &"],
+            capture_output=True, timeout=3
+        )
+        return f"Executed: {keys_str}"
+    except Exception as e:
+        return f"Command failed: {e}"
+
+def _hypr_key_name(key: str) -> str:
+    return _HYPR_KEYS.get(key.lower().strip(), key)
+
+def _exec_hypr_hotkey(modifier: str, key: str, extra: str = "") -> str:
+    mod = modifier.upper()
+    k = _hypr_key_name(key)
+    cmd = f"bind={mod}{extra},{k}"
+    try:
+        subprocess.run(["hyprctl", "dispatch", cmd], capture_output=True, timeout=2)
+        return f"Hypr key: {mod}+{key}"
+    except Exception as e:
+        return f"hyprctl failed: {e}"
+
+# ydotool keycodes (linux/input-event-codes)
+_YDOTOOL_KEYCODES = {
+    # Modifiers
+    "SUPER": 125, "META": 125, "WIN": 125, "LEFTMETA": 125, "RIGHTMETA": 126,
+    "SHIFT": 42, "LEFTSHIFT": 42, "RIGHTSHIFT": 54,
+    "CTRL": 29, "CONTROL": 29, "LEFTCTRL": 29, "RIGHTCTRL": 97,
+    "ALT": 56, "LEFTALT": 56, "RIGHTALT": 100,
+    "TAB": 15,
+    # Letters
+    "A": 30, "B": 48, "C": 46, "D": 32, "E": 18, "F": 33, "G": 34, "H": 35,
+    "I": 23, "J": 36, "K": 37, "L": 38, "M": 50, "N": 49, "O": 24, "P": 25,
+    "Q": 16, "R": 19, "S": 31, "T": 20, "U": 22, "V": 47, "W": 17, "X": 45,
+    "Y": 21, "Z": 44,
+    # Numbers
+    "1": 2, "2": 3, "3": 4, "4": 5, "5": 6, "6": 7, "7": 8, "8": 9, "9": 10, "0": 11,
+    # Navigation
+    "RETURN": 28, "ENTER": 28, "ESCAPE": 1, "ESC": 1, "SPACE": 57,
+    "BACKSPACE": 14, "DELETE": 111,
+    "UP": 103, "DOWN": 108, "LEFT": 105, "RIGHT": 106,
+    "HOME": 102, "END": 107, "PAGEUP": 104, "PAGEDOWN": 109,
+    # Function keys
+    "F1": 59, "F2": 60, "F3": 61, "F4": 62, "F5": 63, "F6": 64,
+    "F7": 65, "F8": 66, "F9": 67, "F10": 68, "F11": 87, "F12": 88,
+    # Symbols
+    "MINUS": 12, "EQUAL": 13, "COMMA": 51, "PERIOD": 52, "SLASH": 53,
+    "SEMICOLON": 39, "APOSTROPHE": 40, "GRAVE": 41,
+    "LEFTBRACKET": 26, "RIGHTBRACKET": 27, "BACKSLASH": 43,
+    "PRINT": 99, "SCROLLLOCK": 70, "PAUSE": 127,
+    "INSERT": 110, "MENU": 127,
+}
+
+def _ydotool_hotkey(*keys) -> str:
+    """Simula atajo de teclado usando ydotool"""
+    import subprocess
+
+    keycodes = []
+    for k in keys:
+        k_upper = k.upper()
+        if k_upper in _YDOTOOL_KEYCODES:
+            keycodes.append(_YDOTOOL_KEYCODES[k_upper])
+        else:
+            print(f"[ComputerControl] ⚠️ Unknown key: {k}")
+            return f"Unknown key: {k}"
+
+    # Build press+release sequence: KEY:1 down, KEY:0 up
+    seq_parts = []
+    for kc in keycodes:
+        seq_parts.append(f"{kc}:1")
+    for kc in reversed(keycodes):
+        seq_parts.append(f"{kc}:0")
+
+    seq = " ".join(seq_parts)
+
+    try:
+        env = os.environ.copy()
+        env["YDOTOOL_SOCKET"] = "/run/user/1000/.ydotool_socket"
+        env["XDG_RUNTIME_DIR"] = "/run/user/1000"
+        env["WAYLAND_DISPLAY"] = "wayland-1"
+        result = subprocess.run(
+            ["ydotool", "key", seq],
+            capture_output=True, timeout=2, env=env
+        )
+        if result.returncode != 0:
+            return f"ydotool failed: {result.stderr.decode()[:100]}"
+        return f"Hotkey: {'+'.join(keys)}"
+    except Exception as e:
+        return f"ydotool error: {e}"
+
+
+def _ydotool_key(key: str) -> str:
+    """Press and release a single key using ydotool."""
+    return _ydotool_hotkey(key)
+
+
+def _run_ydotool_script(*keys) -> str:
+    """Escribe script sh temporal y lo ejecuta para simular hotkey"""
+    import subprocess, tempfile, os
+
+    keycodes = []
+    for k in keys:
+        k_upper = k.upper()
+        if k_upper in _YDOTOOL_KEYCODES:
+            keycodes.append(_YDOTOOL_KEYCODES[k_upper])
+        else:
+            print(f"[ComputerControl] ⚠️ Unknown key: {k}")
+            return f"Unknown key: {k}"
+
+    seq_parts = []
+    for kc in keycodes:
+        seq_parts.append(f"{kc}:1")
+    for kc in reversed(keycodes):
+        seq_parts.append(f"{kc}:0")
+    seq = " ".join(seq_parts)
+
+    script_content = f'''#!/bin/bash
+export YDOTOOL_SOCKET=/run/user/1000/.ydotool_socket
+export XDG_RUNTIME_DIR=/run/user/1000
+export WAYLAND_DISPLAY=wayland-1
+/usr/bin/ydotool key {seq}
+'''
+
+    fd, path = tempfile.mkstemp(suffix=".sh")
+    os.write(fd, script_content.encode())
+    os.close(fd)
+    os.chmod(path, 0o755)
+
+    try:
+        result = subprocess.run(
+            ["bash", path],
+            capture_output=True, timeout=3
+        )
+        if result.returncode != 0:
+            return f"script failed: {result.stderr.decode()[:100]}"
+        return f"Hotkey: {'+'.join(keys)}"
+    except Exception as e:
+        return f"script error: {e}"
+    finally:
+        os.unlink(path)
+
 def _user_profile() -> dict:
     """Read identity fields from long-term memory."""
     try:
@@ -209,21 +380,24 @@ def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
 
 
 def _clipboard_get() -> str:
-    if _PYPERCLIP:
-        return pyperclip.paste()
-    _hotkey("ctrl", "c")
-    time.sleep(0.2)
-    return "(copied — pyperclip unavailable for read)"
+    try:
+        result = subprocess.run(["wl-paste"], capture_output=True, text=True, timeout=2)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return f"wl-paste failed: {result.stderr}"
+    except Exception as e:
+        return f"wl-paste error: {e}"
 
 
 def _clipboard_paste(text: str) -> str:
-    if _PYPERCLIP:
-        pyperclip.copy(text)
+    try:
+        subprocess.run(["wl-copy"], input=text, text=True, capture_output=True, timeout=2)
         time.sleep(0.1)
         _require_pyautogui()
-        pyautogui.hotkey("ctrl", "v")
+        pyautogui.hotkey("winleft", "v")
         return f"Pasted: {text[:60]}{'…' if len(text) > 60 else ''}"
-    return "pyperclip not available"
+    except Exception as e:
+        return f"wl-copy failed: {e}"
 
 
 def _screenshot(save_path: str | None = None) -> str:
@@ -431,12 +605,61 @@ def computer_control(
             )
 
         if action == "hotkey":
-            raw  = params.get("keys", "")
-            keys = [k.strip() for k in raw.split("+")] if isinstance(raw, str) else raw
-            return _hotkey(*keys)
+                raw  = params.get("keys", "")
+                keys = [k.strip() for k in raw.split("+")] if isinstance(raw, str) else raw
+
+                def _parse_num(k):
+                    k = k.lower()
+                    if k in ("1", "code:10"): return 1
+                    if k in ("2", "code:11"): return 2
+                    if k in ("3", "code:12"): return 3
+                    if k in ("4", "code:13"): return 4
+                    if k in ("5", "code:14"): return 5
+                    if k in ("6", "code:15"): return 6
+                    if k in ("7", "code:16"): return 7
+                    if k in ("8", "code:17"): return 8
+                    if k in ("9", "code:18"): return 9
+                    if k in ("0", "code:19"): return 10
+                    return None
+
+                # SUPER+[1-0] = switch workspace
+                if len(keys) == 2 and keys[0].upper() in ("SUPER", "WIN", "META"):
+                    num = _parse_num(keys[1])
+                    if num:
+                        try:
+                            subprocess.run(
+                                ["hyprctl", "dispatch", f"workspace {num}"],
+                                capture_output=True, timeout=2
+                            )
+                            return f"Workspace: {num}"
+                        except Exception as e:
+                            return f"hyprctl workspace failed: {e}"
+
+                # SUPER+SHIFT+[1-0] = move window to workspace
+                if len(keys) == 3 and keys[0].upper() in ("SUPER", "WIN", "META") and keys[1].upper() == "SHIFT":
+                    num = _parse_num(keys[2])
+                    if num:
+                        try:
+                            subprocess.run(
+                                ["hyprctl", "dispatch", f"movetoworkspace {num}"],
+                                capture_output=True, timeout=2
+                            )
+                            return f"Window moved to workspace {num}"
+                        except Exception as e:
+                            return f"hyprctl movetoworkspace failed: {e}"
+
+                # All SUPER+ combos → try direct command first, then ydotool fallback
+                keys_str = "+".join(k.upper() for k in keys)
+                result = _exec_hotkey_command(keys_str)
+                if result:
+                    return result
+                return _run_ydotool_script(*keys)
+
+                # Non-SUPER hotkeys (Ctrl+C, Ctrl+V, etc.) → use ydotool via script
+                return _run_ydotool_script(*keys)
 
         if action == "press":
-            return _press(params.get("key", "enter"))
+            return _ydotool_key(params.get("key", "enter"))
 
         if action == "scroll":
             return _scroll(

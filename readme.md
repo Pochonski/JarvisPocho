@@ -1,4 +1,5 @@
 # 🤖 MARK XXXIX (39)
+
 ### The Ultimate Cross-Platform Personal AI Assistant — By FatihMakes
 
 > 📺 **[Watch the full setup video on YouTube](https://youtu.be/ej1f5OE3SNQ?si=lCxDhJix9ungq1Ry)**
@@ -18,14 +19,15 @@ It's not just an assistant — it's an extension of your digital life.
 ## 🚀 Capabilities
 
 ### Core Features
-| Feature | Description |
-|---|---|
-| 🎙️ Real-time Voice | Ultra-low latency conversation in any language |
-| 🖥️ System Control | Launch apps, manage files, execute terminal commands |
-| 🧩 Autonomous Tasks | High-level planning for complex, multi-step goals |
-| 👁️ Visual Awareness | Real-time screen processing and webcam vision |
+
+| Feature              | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| 🎙️ Real-time Voice   | Ultra-low latency conversation in any language                    |
+| 🖥️ System Control    | Launch apps, manage files, execute terminal commands              |
+| 🧩 Autonomous Tasks  | High-level planning for complex, multi-step goals                 |
+| 👁️ Visual Awareness  | Real-time screen processing and webcam vision                     |
 | 🧠 Persistent Memory | Deeply remembers your projects, preferences, and personal context |
-| ⌨️ Hybrid Input | Seamlessly switch between keyboard typing and voice commands |
+| ⌨️ Hybrid Input      | Seamlessly switch between keyboard typing and voice commands      |
 
 ---
 
@@ -54,12 +56,12 @@ python main.py
 
 ## 📋 Requirements
 
-| Requirement | Details |
-|---|---|
-| **OS** | Windows 10/11, macOS, or Linux |
-| **Python** | 3.11 or 3.12 |
+| Requirement    | Details                        |
+| -------------- | ------------------------------ |
+| **OS**         | Windows 10/11, macOS, or Linux |
+| **Python**     | 3.11 or 3.12                   |
 | **Microphone** | Required for voice interaction |
-| **API Key** | Free Gemini API key |
+| **API Key**    | Free Gemini API key            |
 
 ---
 
@@ -75,7 +77,7 @@ Licensed under **[Creative Commons BY-NC 4.0](https://creativecommons.org/licens
 Engineered by a developer building a real-world JARVIS-style assistant.
 ⭐ **Star the repository to support the journey to Mark 100.**
 
-| Platform | Link |
-|---|---|
-| YouTube | [@FatihMakes](https://www.youtube.com/@FatihMakes) |
+| Platform  | Link                                                |
+| --------- | --------------------------------------------------- |
+| YouTube   | [@FatihMakes](https://www.youtube.com/@FatihMakes)  |
 | Instagram | [@fatihmakes](https://www.instagram.com/fatihmakes) |

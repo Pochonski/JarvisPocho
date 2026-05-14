@@ -1,0 +1,64 @@
+{
+  "identity": {
+    "name": {
+      "value": "Joseph / Pocho",
+      "updated": "2026-05-13"
+    },
+    "nicknames": {
+      "value": "Joseph y Pocho - usar ambos interchangeably, no siempre el mismo",
+      "updated": "2026-05-13"
+    },
+    "os": {
+      "value": "Arch Linux + Hyprland, distro Omarchy",
+      "updated": "2026-05-13"
+    }
+  },
+  "preferences": {
+    "language": {
+      "value": "español",
+      "updated": "2026-05-13"
+    },
+    "keybindings_omarchy": {
+      "value": "Super = SUPER (modkey)",
+      "updated": "2026-05-13"
+    }
+  },
+  "projects": {
+    "projects_folder": {
+      "value": "/home/pocho/Projects/",
+      "updated": "2026-05-13"
+    }
+  },
+  "notes": {
+    "clap_listener_active": {
+      "value": "yes",
+      "updated": "2026-05-13"
+    },
+    "omarchy_keybindings": {
+      "value": "SUPER = modkey, SUPER+SPACE=launcher, SUPER+RETURN=terminal, SUPER+SHIFT+RETURN=browser, SUPER+SHIFT+F=files, SUPER+W=close window, SUPER+C/V/X=copy/paste/cut universal, SUPER+T=tiling toggle, SUPER+F=fullscreen, SUPER+L=workspace layout toggle, SUPER+J=split toggle, SUPER+P=pseudo window, SUPER+S=scratchpad, SUPER+arrow=focus, SUPER+SHIFT+arrow=swap window, SUPER+1-0=workspace, SUPER+SHIFT+1-0=move to workspace, SUPER+TAB=next workspace, SUPER+G=group toggle, SUPER+ESC=system menu, SUPER+K=keybindings menu, PRINT=screenshot, SUPER+PRINT=color picker, SUPER+CTRL+L=lock",
+      "updated": "2026-05-13"
+    },
+    "media_keys": {
+      "value": "volume=brightness=mic=brightness keys via omarchy-swayosd-client, playerctl for music (next/prev/play/pause)",
+      "updated": "2026-05-13"
+    },
+    "omarchy_menus": {
+      "value": "Super+SPACE=launch apps, Super+CTRL+E=emoji, Super+CTRL+C=capture, Super+CTRL+O=toggle menu, Super+CTRL+H=hardware, Super+ALT+SPACE=omarchy menu, Super+ESC=system menu",
+      "updated": "2026-05-13"
+    },
+    "omarchy_toggles": {
+      "value": "Super+SHIFT+SPACE=topbar, Super+BACKSPACE=transparency, Super+CTRL+I=idle lock, Super+CTRL+N=nightlight, Super+CTRL+DELETE=laptop display",
+      "updated": "2026-05-13"
+    },
+    "omarchy_workspaces": {
+      "value": "Super+1-0=switch workspace, Super+SHIFT+1-0=move window, Super+SHIFT+ALT+1-0=move silent, Super+SHIFT+ALT+arrows=move workspace to monitor",
+      "updated": "2026-05-13"
+    },
+    "common_phrase": {
+      "value": "Dígales",
+      "updated": "2026-05-13"
+    }
+  },
+  "relationships": {},
+  "wishes": {}
+}

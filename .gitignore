@@ -1,0 +1,19 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment files
+.env
+.env.*
+
+# Editor files
+*.swp
+*.swo
+.vscode/
+
+# Secrets/config
+config/api_keys.json
+
+# Logs and generated files
+*.log

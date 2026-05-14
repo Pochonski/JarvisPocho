@@ -106,15 +106,37 @@ def _compress(img_bytes: bytes, source_format: str = "PNG") -> tuple[bytes, str]
         return img_bytes, f"image/{source_format.lower()}"
 
 def _capture_screen() -> tuple[bytes, str]:
+    import subprocess, tempfile, os
 
+    # Try grim (Wayland native) first
+    try:
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        tmp.close()
+        result = subprocess.run(
+            ["grim", tmp.name],
+            capture_output=True, timeout=5
+        )
+        if result.returncode == 0 and os.path.getsize(tmp.name) > 1000:
+            with open(tmp.name, "rb") as f:
+                data = f.read()
+            os.unlink(tmp.name)
+            return _compress(data, "PNG")
+        else:
+            if os.path.exists(tmp.name):
+                os.unlink(tmp.name)
+    except Exception as e:
+        print(f"[Vision] ⚠️  grim failed: {e}")
+
+    # Fallback to mss (X11)
     if not _MSS:
         raise RuntimeError("mss is not installed. Run: pip install mss")
 
     with mss.mss() as sct:
-        monitors = sct.monitors          # [0] = all combined, [1..n] = real screens
-        target   = monitors[1] if len(monitors) > 1 else monitors[0]
-        shot     = sct.grab(target)
-        png      = mss.tools.to_png(shot.rgb, shot.size)
+        monitors = sct.monitors
+        # Use monitor 1 (primary), not 0 (all combined)
+        target = monitors[1] if len(monitors) > 1 else monitors[0]
+        shot   = sct.grab(target)
+        png    = mss.tools.to_png(shot.rgb, shot.size)
 
     return _compress(png, "PNG")
 

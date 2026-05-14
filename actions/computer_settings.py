@@ -312,14 +312,17 @@ def page_down(): pyautogui.press("pagedown")
 
 def copy():
     if _OS == "Darwin": pyautogui.hotkey("command", "c")
+    elif _OS == "linux": pyautogui.hotkey("winleft", "c")
     else:               pyautogui.hotkey("ctrl", "c")
 
 def paste():
     if _OS == "Darwin": pyautogui.hotkey("command", "v")
+    elif _OS == "linux": pyautogui.hotkey("winleft", "v")
     else:               pyautogui.hotkey("ctrl", "v")
 
 def cut():
     if _OS == "Darwin": pyautogui.hotkey("command", "x")
+    elif _OS == "linux": pyautogui.hotkey("winleft", "x")
     else:               pyautogui.hotkey("ctrl", "x")
 
 def undo():
