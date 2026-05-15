@@ -182,6 +182,7 @@ TOOL_DECLARATIONS = [
             "Controls the computer: volume, brightness, window management, keyboard shortcuts, "
             "typing text on screen, closing apps, fullscreen, dark mode, WiFi, restart, shutdown, "
             "scrolling, tab management, zoom, screenshots, lock screen, refresh/reload page. "
+            "Use action='close_window_by_name' with description=window_name to close a specific window by title. "
             "Use for ANY single computer control command. NEVER route to agent_task."
         ),
         "parameters": {

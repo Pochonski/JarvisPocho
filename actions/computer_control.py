@@ -154,7 +154,8 @@ _HOTKEY_COMMANDS = {
     "SUPER+SHIFT+A":    'omarchy-launch-webapp "https://chatgpt.com"',
     "SUPER+SHIFT+Y":    'omarchy-launch-webapp "https://youtube.com/"',
     "SUPER+CTRL+V":      '~/.local/bin/cliphist-picker.sh',
-    "SUPER+T":          'uwsm-app -- xdg-terminal-exec',  # toggle tiling
+    "SUPER+T":          'uwsm-app -- xdg-terminal-exec',
+    "SUPER+W":          'hyprctl dispatch killactive',
 }
 
 def _exec_hotkey_command(keys_str: str) -> str:
@@ -314,7 +315,53 @@ def _user_profile() -> dict:
         pass
     return {}
 
+def _is_terminal_window() -> bool:
+    """Check if the active window is a terminal using hyprctl."""
+    try:
+        result = subprocess.run(
+            ["hyprctl", "activewindow", "-j"],
+            capture_output=True, text=True, timeout=2
+        )
+        win = json.loads(result.stdout)
+        win_class = (win.get("initialClass", "") + " " + win.get("class", "") + " " + win.get("title", "")).lower()
+        return any(t in win_class for t in ("terminal", "alacritty", "kitty", "foot", "ghostty", "gnome-terminal", "konsole", "xterm", "wezterm", "st"))
+    except Exception:
+        return False
+
+_WTYPE_KEYS = {
+    "enter": "Return", "return": "Return", "escape": "Escape", "esc": "Escape",
+    "space": "space", "tab": "Tab", "backspace": "BackSpace", "delete": "Delete",
+    "up": "Up", "down": "Down", "left": "Left", "right": "Right",
+    "home": "Home", "end": "End", "pageup": "Page_Up", "pagedown": "Page_Down",
+    "f1": "F1", "f2": "F2", "f3": "F3", "f4": "F4", "f5": "F5", "f6": "F6",
+    "f7": "F7", "f8": "F8", "f9": "F9", "f10": "F10", "f11": "F11", "f12": "F12",
+    "insert": "Insert", "print": "Print", "pause": "Pause",
+}
+
+def _wtype_press(key: str) -> bool:
+    """Press a key using wtype. Returns True if successful."""
+    wtype_key = _WTYPE_KEYS.get(key.lower(), key)
+    try:
+        result = subprocess.run(
+            ["wtype", "-k", wtype_key],
+            capture_output=True, timeout=5
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
 def _type(text: str, interval: float = 0.03) -> str:
+    if _get_os() == "linux":
+        try:
+            result = subprocess.run(
+                ["wtype", text],
+                capture_output=True, timeout=10
+            )
+            if result.returncode == 0:
+                return f"Typed: {text[:60]}{'…' if len(text) > 60 else ''}"
+        except Exception:
+            pass
+
     _require_pyautogui()
     time.sleep(0.3)
     pyautogui.typewrite(text, interval=interval)
@@ -322,17 +369,22 @@ def _type(text: str, interval: float = 0.03) -> str:
 
 
 def _smart_type(text: str, clear_first: bool = True) -> str:
-    _require_pyautogui()
     if clear_first:
         _clear_field()
         time.sleep(0.1)
 
-    if len(text) > 20 and _PYPERCLIP:
-        pyperclip.copy(text)
-        time.sleep(0.1)
-        pyautogui.hotkey("ctrl", "v")
-        return f"Smart-typed (clipboard): {text[:60]}{'…' if len(text) > 60 else ''}"
+    if _get_os() == "linux":
+        try:
+            result = subprocess.run(
+                ["wtype", text],
+                capture_output=True, timeout=10
+            )
+            if result.returncode == 0:
+                return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
+        except Exception:
+            pass
 
+    _require_pyautogui()
     pyautogui.typewrite(text, interval=0.04)
     return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
 
@@ -391,13 +443,19 @@ def _clipboard_get() -> str:
 
 def _clipboard_paste(text: str) -> str:
     try:
-        subprocess.run(["wl-copy"], input=text, text=True, capture_output=True, timeout=2)
-        time.sleep(0.1)
+        proc = subprocess.Popen(
+            ["wl-copy", text],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        time.sleep(0.3)
         _require_pyautogui()
-        pyautogui.hotkey("winleft", "v")
+        pyautogui.hotkey("super", "v")
+        time.sleep(0.3)
+        proc.terminate()
         return f"Pasted: {text[:60]}{'…' if len(text) > 60 else ''}"
     except Exception as e:
-        return f"wl-copy failed: {e}"
+        return f"Paste failed: {e}"
 
 
 def _screenshot(save_path: str | None = None) -> str:
@@ -659,7 +717,10 @@ def computer_control(
                 return _run_ydotool_script(*keys)
 
         if action == "press":
-            return _ydotool_key(params.get("key", "enter"))
+            key = params.get("key", "enter")
+            if _get_os() == "linux" and _wtype_press(key):
+                return f"Pressed: {key}"
+            return _press(key)
 
         if action == "scroll":
             return _scroll(

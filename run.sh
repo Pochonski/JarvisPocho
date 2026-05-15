@@ -20,10 +20,9 @@ export XDG_MUSIC_DIR="${XDG_MUSIC_DIR:-$HOME/Music}"
 export XDG_VIDEOS_DIR="${XDG_VIDEOS_DIR:-$HOME/Videos}"
 
 # Variables de entorno para Hyprland/Wayland
-export DISPLAY=:1
-export WAYLAND_DISPLAY=wayland-1
-export XDG_RUNTIME_DIR=/run/user/1000
-export QT_QPA_PLATFORM=wayland
+export DISPLAY="${DISPLAY:-:0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export QT_QPA_PLATFORM=xcb
 
 # Verificar API key
 if [ ! -f config/api_keys.json ]; then

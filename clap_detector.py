@@ -106,10 +106,9 @@ def launch_on_clap():
     base_dir = Path(__file__).resolve().parent
 
     env = os.environ.copy()
-    env["DISPLAY"] = ":1"
-    env["WAYLAND_DISPLAY"] = "wayland-1"
-    env["XDG_RUNTIME_DIR"] = "/run/user/1000"
-    env["QT_QPA_PLATFORM"] = "wayland"
+    env.setdefault("DISPLAY", ":0")
+    env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    env["QT_QPA_PLATFORM"] = "xcb"
 
     subprocess.Popen(
         [str(base_dir / "run.sh")],

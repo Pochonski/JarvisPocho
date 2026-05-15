@@ -7,10 +7,9 @@ cd "$SCRIPT_DIR"
 
 source .venv/bin/activate
 
-export DISPLAY=:1
-export WAYLAND_DISPLAY=wayland-1
-export XDG_RUNTIME_DIR=/run/user/1000
-export QT_QPA_PLATFORM=wayland
+export DISPLAY="${DISPLAY:-:0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export QT_QPA_PLATFORM=xcb
 
 LOG_FILE="/tmp/mark-xxxix-clap.log"
 

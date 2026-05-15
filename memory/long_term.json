@@ -1,12 +1,8 @@
 {
   "identity": {
-    "name": {
-      "value": "Joseph / Pocho",
-      "updated": "2026-05-13"
-    },
     "nicknames": {
-      "value": "Joseph y Pocho - usar ambos interchangeably, no siempre el mismo",
-      "updated": "2026-05-13"
+      "value": "Joseph y Pocho",
+      "updated": "2026-05-14"
     },
     "os": {
       "value": "Arch Linux + Hyprland, distro Omarchy",
@@ -57,8 +53,17 @@
     "common_phrase": {
       "value": "Dígales",
       "updated": "2026-05-13"
+    },
+    "terminal_keybinding": {
+      "value": "SUPER+RETURN",
+      "updated": "2026-05-14"
     }
   },
-  "relationships": {},
+  "relationships": {
+    "friend_name": {
+      "value": "Juanito",
+      "updated": "2026-05-14"
+    }
+  },
   "wishes": {}
 }

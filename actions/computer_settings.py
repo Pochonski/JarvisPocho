@@ -167,8 +167,41 @@ def brightness_down():
         except Exception as e:
             print(f"[Settings] Brightness down failed on Windows: {e}")
 
+def close_window_by_name(window_name: str) -> str:
+    """Close a specific window by name using hyprctl."""
+    try:
+        result = subprocess.run(
+            ["hyprctl", "clients", "-j"],
+            capture_output=True, text=True, timeout=5
+        )
+        clients = json.loads(result.stdout)
+
+        target = None
+        for client in clients:
+            title = client.get("title", "")
+            if window_name.lower() in title.lower():
+                target = client
+                break
+
+        if not target:
+            return f"No window found matching '{window_name}'."
+
+        address = target["address"]
+        subprocess.run(
+            ["hyprctl", "dispatch", "closewindow", f"address:{address}"],
+            capture_output=True, timeout=5
+        )
+        return f"Closed '{target['title']}'."
+    except Exception as e:
+        return f"Error closing window: {e}"
+
 def close_app():
     if _OS == "Darwin": pyautogui.hotkey("command", "q")
+    elif _OS == "Linux":
+        try:
+            subprocess.run(["hyprctl", "dispatch", "killactive"], capture_output=True)
+        except Exception:
+            pyautogui.hotkey("super", "w")
     else:               pyautogui.hotkey("alt", "f4")
 
 def close_window():
@@ -519,6 +552,7 @@ ACTION_MAP: dict[str, callable] = {
     "play_pause":          pause_video,
     "close_app":           close_app,
     "close_window":        close_window,
+    "close_window_by_name": close_window_by_name,
     "full_screen":         full_screen,
     "fullscreen":          full_screen,
     "minimize":            minimize_window,
