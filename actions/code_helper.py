@@ -198,9 +198,10 @@ def _run_file(path: Path, args: list, timeout: int) -> str:
         ".rb":  ["ruby"],
         ".php": ["php"],
     }
-    interp = interpreters.get(path.suffix.lower())
+    suffix = path.suffix.lower()
+    interp = interpreters.get(suffix)
     if not interp:
-        return f"No interpreter for {path.suffix}."
+        return f"No interpreter for file type '{suffix or '(no extension)'}'. Supported: {', '.join(interpreters.keys())}. Use run_project for complete projects."
 
     try:
         result = subprocess.run(
@@ -357,7 +358,13 @@ Explanation:"""
 def _run_action(file_path, args, timeout, player) -> str:
     if not file_path:
         return "Please provide a file path to run, sir."
-    p = Path(file_path)
+    p = Path(file_path).expanduser()
+
+    # If it's a directory, redirect to run_project
+    if p.is_dir():
+        print(f"[Code] 📂 Path is a directory, redirecting to run_project")
+        return _run_project_action(str(p), timeout, True, player)
+
     if not p.exists():
         return f"File not found: {file_path}"
     if player:
@@ -506,6 +513,446 @@ Be specific and actionable. If you see an error message, quote it exactly."""
         return f"Screen analysis failed: {e}"
 
 
+_DANGEROUS_COMMANDS = [
+    "git clone", "git init", "git fetch",
+    "rm -rf", "rm -r", "rm -f",
+    "sudo", "chmod", "chown",
+    "mkfs", "dd if=", "fdisk",
+    "curl | sh", "curl | bash", "wget | sh", "wget | bash",
+    "> /dev/", "dd of=",
+]
+
+def _is_safe_command(cmd: str) -> bool:
+    """Check if a command is safe to run (not destructive or repo-related)."""
+    cmd_lower = cmd.lower().strip()
+    for dangerous in _DANGEROUS_COMMANDS:
+        if dangerous in cmd_lower:
+            return False
+    return True
+
+def _detect_project_type(path: Path) -> dict:
+    result = {
+        "type": "unknown",
+        "entry_point": None,
+        "install_cmd": None,
+        "run_cmd": None,
+        "package_manager": None,
+    }
+
+    if not path.is_dir():
+        return result
+
+    children = {f.name for f in path.iterdir()}
+
+    # Node.js
+    if "package.json" in children:
+        result["type"] = "node"
+        result["install_cmd"] = "npm install"
+        result["package_manager"] = "npm"
+        if "pnpm-lock.yaml" in children or "pnpm-workspace.yaml" in children:
+            result["package_manager"] = "pnpm"
+            result["install_cmd"] = "pnpm install"
+        elif "yarn.lock" in children:
+            result["package_manager"] = "yarn"
+            result["install_cmd"] = "yarn install"
+        # Try to find entry point from package.json
+        try:
+            pkg = json.loads((path / "package.json").read_text())
+            scripts = pkg.get("scripts", {})
+            if "start" in scripts:
+                result["run_cmd"] = f"{result['package_manager']} start"
+            elif "dev" in scripts:
+                result["run_cmd"] = f"{result['package_manager']} run dev"
+            result["entry_point"] = pkg.get("main", None)
+        except Exception:
+            pass
+
+    # Python
+    elif "requirements.txt" in children or "pyproject.toml" in children or "Pipfile" in children:
+        result["type"] = "python"
+        if "requirements.txt" in children:
+            result["install_cmd"] = "pip install -r requirements.txt"
+        elif "pyproject.toml" in children:
+            result["install_cmd"] = "pip install ."
+        elif "Pipfile" in children:
+            result["install_cmd"] = "pipenv install"
+        # Find entry point
+        for candidate in ["main.py", "app.py", "__main__.py", "manage.py", "server.py", "cli.py"]:
+            if candidate in children:
+                result["entry_point"] = candidate
+                result["run_cmd"] = f"python {candidate}"
+                break
+        if "setup.py" in children and not result["run_cmd"]:
+            result["run_cmd"] = "python setup.py run"
+        if "pyproject.toml" in children and not result["run_cmd"]:
+            result["run_cmd"] = "python -m ."
+
+    # Rust
+    elif "Cargo.toml" in children:
+        result["type"] = "rust"
+        result["install_cmd"] = "cargo build"
+        result["run_cmd"] = "cargo run"
+        result["entry_point"] = "src/main.rs"
+
+    # Go
+    elif "go.mod" in children:
+        result["type"] = "go"
+        result["install_cmd"] = "go mod download"
+        result["run_cmd"] = "go run ."
+        result["entry_point"] = "main.go"
+
+    # Ruby
+    elif "Gemfile" in children:
+        result["type"] = "ruby"
+        result["install_cmd"] = "bundle install"
+        result["run_cmd"] = "bundle exec ruby main.rb"
+        result["entry_point"] = "main.rb"
+
+    # Java Maven
+    elif "pom.xml" in children:
+        result["type"] = "java_maven"
+        result["install_cmd"] = "mvn dependency:resolve"
+        result["run_cmd"] = "mvn exec:java"
+        result["entry_point"] = "pom.xml"
+
+    # Java Gradle
+    elif "build.gradle" in children or "build.gradle.kts" in children:
+        result["type"] = "java_gradle"
+        result["install_cmd"] = "gradle dependencies"
+        result["run_cmd"] = "gradle run"
+        result["entry_point"] = "build.gradle"
+
+    # Makefile
+    elif "Makefile" in children or "makefile" in children:
+        result["type"] = "make"
+        result["install_cmd"] = "make"
+        result["run_cmd"] = "make run"
+        result["entry_point"] = "Makefile"
+
+    # .NET
+    elif any(f.endswith(".csproj") or f.endswith(".sln") for f in children):
+        result["type"] = "dotnet"
+        csproj = next((f for f in children if f.endswith(".csproj")), None)
+        result["install_cmd"] = "dotnet restore"
+        result["run_cmd"] = f"dotnet run"
+        result["entry_point"] = csproj
+
+    return result
+
+
+def _read_run_instructions(path: Path) -> str | None:
+    """Read README or similar files to find run instructions."""
+    readme_names = ["README.md", "README.txt", "RUNNING.md", "CONTRIBUTING.md", "DEVELOPMENT.md"]
+    content = None
+    for name in readme_names:
+        readme = path / name
+        if readme.exists():
+            try:
+                content = readme.read_text(encoding="utf-8", errors="ignore")
+                break
+            except Exception:
+                continue
+
+    if not content:
+        return None
+
+    # Extract relevant sections
+    sections = ["run", "usage", "getting started", "development", "quick start", "install", "build"]
+    lines = content.split("\n")
+    relevant_lines = []
+    in_section = False
+    in_code_block = False
+
+    for line in lines:
+        stripped = line.strip().lower()
+        # Detect section headers (## Run, ### Usage, etc.)
+        if stripped.startswith("#"):
+            header_text = stripped.lstrip("# ").strip()
+            in_section = any(s in header_text for s in sections)
+
+        if in_section:
+            relevant_lines.append(line)
+            # Collect code blocks within sections
+            if "```" in stripped:
+                in_code_block = not in_code_block
+
+    if not relevant_lines:
+        # Fallback: extract all bash/sh code blocks
+        in_block = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("```bash") or stripped.startswith("```sh") or stripped.startswith("```"):
+                in_block = not in_block
+                continue
+            if in_block:
+                relevant_lines.append(line)
+
+    if not relevant_lines:
+        return None
+
+    return "\n".join(relevant_lines[:50])  # Limit to avoid huge strings
+
+
+def _install_deps(path: Path, project_type: str, pkg_manager: str = None, timeout: int = 120) -> str:
+    """Install project dependencies based on project type."""
+    install_cmds = {
+        "node": {
+            "npm": "npm install",
+            "yarn": "yarn install",
+            "pnpm": "pnpm install",
+        },
+        "python": "pip install -r requirements.txt",
+        "rust": "cargo build",
+        "go": "go mod download",
+        "ruby": "bundle install",
+        "java_maven": "mvn dependency:resolve",
+        "java_gradle": "gradle dependencies",
+        "dotnet": "dotnet restore",
+        "make": "make",
+    }
+
+    if project_type == "node" and pkg_manager:
+        cmd = install_cmds.get("node", {}).get(pkg_manager, "npm install")
+    else:
+        cmd = install_cmds.get(project_type)
+
+    if not cmd:
+        return "No install command known for this project type."
+
+    # Safety check
+    if not _is_safe_command(cmd):
+        return f"Install command rejected as unsafe: {cmd}"
+
+    # For Python with requirements.txt, check file exists
+    if project_type == "python" and "requirements.txt" in cmd:
+        if not (path / "requirements.txt").exists():
+            if (path / "setup.py").exists():
+                cmd = "pip install ."
+            elif (path / "pyproject.toml").exists():
+                cmd = "pip install ."
+            else:
+                return "No requirements.txt or setup.py found, skipping install."
+
+    print(f"[Code] 📦 Installing deps: {cmd}")
+    try:
+        result = subprocess.run(
+            cmd, shell=True,
+            capture_output=True, text=True,
+            timeout=timeout, cwd=str(path)
+        )
+        if result.returncode == 0:
+            return f"Dependencies installed: {cmd}"
+        error = result.stderr.strip()[:300]
+        return f"Install failed: {error}"
+    except subprocess.TimeoutExpired:
+        return f"Install timed out after {timeout}s."
+    except FileNotFoundError:
+        return f"Command not found: {cmd.split()[0]}. Is it installed?"
+    except Exception as e:
+        return f"Install error: {e}"
+
+
+def _find_run_command(path: Path, project_type: str, readme_hints: str = None) -> str:
+    """Determine the best command to run the project."""
+    # Priority 1: Use README hints if they contain commands
+    if readme_hints:
+        import re
+        # Look for commands in code blocks
+        code_blocks = re.findall(r"```(?:bash|sh)?\n(.*?)```", readme_hints, re.DOTALL)
+        for block in code_blocks:
+            lines = block.strip().split("\n")
+            for line in lines:
+                line = line.strip()
+                if line and not line.startswith("#") and not line.startswith("echo"):
+                    # Skip dangerous commands (git clone, rm -rf, etc.)
+                    if _is_safe_command(line):
+                        return line
+
+    # Priority 2: Use detected run command
+    detected = _detect_project_type(path)
+    if detected.get("run_cmd"):
+        return detected["run_cmd"]
+
+    # Priority 3: Fallback heuristics
+    children = {f.name for f in path.iterdir()}
+
+    if project_type == "node":
+        if "package.json" in children:
+            try:
+                pkg = json.loads((path / "package.json").read_text())
+                scripts = pkg.get("scripts", {})
+                if "start" in scripts:
+                    return "npm start"
+                if "dev" in scripts:
+                    return "npm run dev"
+            except Exception:
+                pass
+        # Try to find entry file
+        for candidate in ["index.js", "index.ts", "server.js", "app.js", "main.js"]:
+            if candidate in children:
+                return f"node {candidate}"
+
+    elif project_type == "python":
+        for candidate in ["main.py", "app.py", "__main__.py", "manage.py", "server.py"]:
+            if candidate in children:
+                return f"python {candidate}"
+
+    elif project_type == "rust":
+        return "cargo run"
+
+    elif project_type == "go":
+        return "go run ."
+
+    return None
+
+
+def _detect_web_server(output: str) -> int | None:
+    """Detect if output indicates a web server is running and extract port."""
+    patterns = [
+        r"[Ll]isten(?:ing)? on port (\d+)",
+        r"[Ss]erver running.*?port (\d+)",
+        r"[Ss]tarted.*?http://[^\s:]+:(\d+)",
+        r"http://localhost:(\d+)",
+        r"http://127\.0\.0\.1:(\d+)",
+        r"[Ll]ocal:\s+http://[^\s]+:(\d+)",
+        r"webpack.*?compiled.*?http://[^\s]+:(\d+)",
+        r"vite.*?http://[^\s]+:(\d+)",
+        r"next.*?http://[^\s]+:(\d+)",
+        r"react.*?http://[^\s]+:(\d+)",
+    ]
+    import re
+    for pattern in patterns:
+        match = re.search(pattern, output)
+        if match:
+            return int(match.group(1))
+
+    # Fallback: check common ports in output
+    for port in [3000, 8080, 8000, 5000, 5173, 4200, 9000, 8081, 3001]:
+        if str(port) in output:
+            return port
+
+    return None
+
+
+def _run_project_action(project_path: str, timeout: int = 60, open_browser: bool = True, player=None) -> str:
+    """Run a complete project: detect type, install deps, execute, detect web server."""
+    path = Path(project_path).expanduser()
+
+    # Handle shortcuts: "projects/..." -> ~/Projects/...
+    if not path.is_absolute():
+        lower = path.parts[0].lower() if path.parts else ""
+        if lower in ("projects", "project"):
+            path = Path.home() / "Projects" / Path(*path.parts[1:])
+        else:
+            path = Path.home() / path
+
+    path = path.resolve()
+
+    if not path.exists():
+        return f"Project path not found: {project_path}"
+    if not path.is_dir():
+        return f"Project path is not a directory: {project_path}"
+
+    if player:
+        player.write_log(f"[Code] Running project: {path.name}")
+
+    # Step 1: Detect project type
+    project_info = _detect_project_type(path)
+    project_type = project_info["type"]
+
+    if project_type == "unknown":
+        return f"Could not detect project type for: {path.name}. Supported: Node.js, Python, Rust, Go, Ruby, Java, Makefile, .NET"
+
+    print(f"[Code] 📂 Project type: {project_type} at {path}")
+
+    # Step 2: Read README for run instructions
+    readme_hints = _read_run_instructions(path)
+    if readme_hints:
+        print(f"[Code] 📖 Found README hints ({len(readme_hints)} chars)")
+
+    # Step 3: Install dependencies
+    install_result = _install_deps(
+        path, project_type,
+        pkg_manager=project_info.get("package_manager"),
+        timeout=120
+    )
+    print(f"[Code] 📦 Install: {install_result[:100]}")
+
+    # Step 4: Find run command
+    run_cmd = _find_run_command(path, project_type, readme_hints)
+    if not run_cmd:
+        return f"Could not determine how to run the project. Type: {project_type}"
+
+    # Safety check: reject dangerous commands
+    if not _is_safe_command(run_cmd):
+        print(f"[Code] ⛔ Rejected unsafe command: {run_cmd}")
+        # Fallback to detected run command
+        detected = _detect_project_type(path)
+        run_cmd = detected.get("run_cmd")
+        if not run_cmd:
+            return f"README contained unsafe commands and no safe run command could be determined. Type: {project_type}"
+
+    print(f"[Code] ▶️ Running: {run_cmd}")
+
+    # Step 5: Execute project
+    try:
+        result = subprocess.run(
+            run_cmd, shell=True,
+            capture_output=True, text=True,
+            timeout=timeout, cwd=str(path)
+        )
+        output = result.stdout.strip()
+        error = result.stderr.strip()
+        combined = output + "\n" + error
+
+        print(f"[Code] ✅ Project executed (exit code: {result.returncode})")
+
+        # Step 6: Detect web server
+        port = _detect_web_server(combined)
+        web_msg = ""
+        if port:
+            url = f"http://localhost:{port}"
+            web_msg = f"\n\n🌐 Web server detected on {url}"
+
+            # Step 7: Open browser if requested
+            if open_browser:
+                try:
+                    from actions.browser_control import browser_control
+                    browser_control(
+                        parameters={"action": "go_to", "url": url},
+                        player=player
+                    )
+                    web_msg += " — opened in browser"
+                except Exception as e:
+                    web_msg += f" — failed to open browser: {e}"
+
+        # Build result
+        parts = [f"Project '{path.name}' ({project_type}) executed."]
+        if "skipping" not in install_result.lower() and "failed" not in install_result.lower():
+            parts.append(f"Install: {install_result[:150]}")
+        parts.append(f"Command: {run_cmd}")
+
+        if output:
+            parts.append(f"Output:\n{output[:500]}")
+        if error and result.returncode != 0:
+            parts.append(f"Error:\n{error[:500]}")
+
+        parts.append(web_msg)
+
+        return "\n".join(parts)
+
+    except subprocess.TimeoutExpired:
+        # For long-running servers, check if it started successfully
+        return (
+            f"Project '{path.name}' started but is still running (timeout: {timeout}s). "
+            f"This is normal for web servers. Command: {run_cmd}"
+        )
+    except FileNotFoundError:
+        return f"Command not found: {run_cmd.split()[0]}. Is it installed?"
+    except Exception as e:
+        return f"Project execution failed: {e}"
+
+
 def code_helper(
     parameters: dict,
     response=None,
@@ -517,14 +964,16 @@ def code_helper(
     Called from main.py.
 
     parameters:
-        action      : write | edit | explain | run | build | screen_debug | optimize | auto
+        action      : write | edit | explain | run | run_project | build | screen_debug | optimize | auto
         description : What the code should do / what change to make / what problem to analyze
         language    : Programming language (default: python)
         output_path : Where to save — user specifies full path or filename
         file_path   : Path to existing file (edit / explain / run / build / optimize)
+        project_path: Path to project folder (run_project)
         code        : Raw code string (explain/optimize without a file)
         args        : CLI argument list for run/build
         timeout     : Execution timeout in seconds (default: 30)
+        open_browser: Open browser if web server detected (default: true)
     """
     p           = parameters or {}
     action      = p.get("action", "auto").lower().strip()
@@ -532,13 +981,19 @@ def code_helper(
     language    = p.get("language", "python").strip()
     output_path = p.get("output_path", "").strip()
     file_path   = p.get("file_path", "").strip()
+    project_path = p.get("project_path", "").strip()
     code        = p.get("code", "").strip()
     args        = p.get("args", [])
     timeout     = int(p.get("timeout", 30))
+    open_browser = p.get("open_browser", True)
 
     if action == "auto":
-        action = _detect_intent(description, file_path, code)
-        print(f"[Code] 🤖 Auto-detected: {action}")
+        # If project_path provided, default to run_project
+        if project_path:
+            action = "run_project"
+        else:
+            action = _detect_intent(description, file_path, code)
+            print(f"[Code] 🤖 Auto-detected: {action}")
 
     if action == "write":
         return _write_action(description, language, output_path, player)
@@ -556,6 +1011,12 @@ def code_helper(
     elif action == "run":
         return _run_action(file_path, args, timeout, player)
 
+    elif action == "run_project":
+        if not project_path and file_path:
+            # If only file_path given, use its parent directory
+            project_path = str(Path(file_path).parent)
+        return _run_project_action(project_path, timeout, open_browser, player)
+
     elif action == "build":
         return _build(description, language, output_path, args, timeout, speak, player)
 
@@ -566,4 +1027,4 @@ def code_helper(
         return _screen_debug_action(description, file_path, player, speak)
 
     else:
-        return f"Unknown action: '{action}'. Use write, edit, explain, run, build, optimize, or screen_debug."
+        return f"Unknown action: '{action}'. Use write, edit, explain, run, run_project, build, optimize, or screen_debug."

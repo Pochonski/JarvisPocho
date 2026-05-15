@@ -79,6 +79,8 @@ def _resolve_path(raw: str) -> Path:
         "music":     _get_music(),
         "videos":    _get_videos(),
         "home":      Path.home(),
+        "projects":  Path.home() / "Projects",
+        "project":   Path.home() / "Projects",
     }
     lower = raw.strip().lower()
     if lower in shortcuts:

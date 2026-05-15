@@ -391,6 +391,12 @@ def _smart_type(text: str, clear_first: bool = True) -> str:
 
 def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
     _require_pyautogui()
+    # Prevent fail-safe trigger at screen corners
+    if x is not None and y is not None:
+        screen_w, screen_h = pyautogui.size()
+        margin = 10
+        if x < margin or y < margin or x > screen_w - margin or y > screen_h - margin:
+            return f"Click rejected: coordinates ({x}, {y}) are at screen edge (fail-safe). Use screen_find to locate elements."
     if x is not None and y is not None:
         pyautogui.click(x, y, button=button, clicks=clicks)
         return f"{'Double-c' if clicks == 2 else 'C'}licked ({x}, {y}) [{button}]"
@@ -645,7 +651,12 @@ def computer_control(
             )
 
         if action in ("click", "left_click"):
-            return _click(params.get("x"), params.get("y"), "left", 1)
+            x = params.get("x")
+            y = params.get("y")
+            # Reject clicks with zero/None coordinates — use screen_click instead
+            if x is None or y is None or (x == 0 and y == 0):
+                return "Click rejected: no valid coordinates. Use screen_click with a description to find and click an element."
+            return _click(x, y, "left", 1)
 
         if action == "double_click":
             return _click(params.get("x"), params.get("y"), "left", 2)

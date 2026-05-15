@@ -441,6 +441,23 @@ def open_file_explorer():
                 return
         subprocess.Popen(["xdg-open", str(Path.home())])
 
+def open_file_browser_to_path(target_path: str) -> str:
+    """Open file browser to a specific path."""
+    p = Path(target_path).expanduser()
+    if not p.exists():
+        return f"Path not found: {target_path}"
+    if _OS == "Windows":
+        subprocess.Popen(["explorer", str(p)])
+    elif _OS == "Darwin":
+        subprocess.Popen(["open", str(p)])
+    else:
+        for cmd in [["nautilus"], ["thunar"], ["dolphin"], ["nemo"]]:
+            if subprocess.run(["which", cmd[0]], capture_output=True).returncode == 0:
+                subprocess.Popen(cmd + [str(p)])
+                return f"Opened file browser to: {p}"
+        subprocess.Popen(["xdg-open", str(p)])
+    return f"Opened file browser to: {p}"
+
 def sleep_display():
     if _OS == "Windows":
         try:
@@ -594,6 +611,8 @@ ACTION_MAP: dict[str, callable] = {
     "lock_screen":         lock_screen,
     "open_settings":       open_system_settings,
     "file_explorer":       open_file_explorer,
+    "open_file_browser":   open_file_explorer,
+    "open":                open_file_explorer,
     "open_run":            open_run,
     "dark_mode":           dark_mode,
     "toggle_wifi":         toggle_wifi,
@@ -713,6 +732,19 @@ def computer_settings(
     if action == "scroll_down":
         scroll_down(int(value or 500))
         return "Scrolled down."
+
+    if action in ("file_explorer", "open_file_browser", "open"):
+        # Check if there's a specific path to open
+        path = value or params.get("path", "")
+        if not path and description:
+            import re
+            path_match = re.search(r'(/[\w/_.\-]+)', description)
+            if path_match:
+                path = path_match.group(1)
+        if path:
+            return open_file_browser_to_path(path)
+        open_file_explorer()
+        return "Opened file browser."
 
     func = ACTION_MAP.get(action)
     if not func:

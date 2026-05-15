@@ -3,26 +3,30 @@
     "nicknames": {
       "value": "Joseph y Pocho",
       "updated": "2026-05-14"
-    },
-    "os": {
-      "value": "Arch Linux + Hyprland, distro Omarchy",
-      "updated": "2026-05-13"
     }
   },
   "preferences": {
-    "language": {
-      "value": "español",
-      "updated": "2026-05-13"
-    },
-    "keybindings_omarchy": {
-      "value": "Super = SUPER (modkey)",
-      "updated": "2026-05-13"
+    "favorite_dessert": {
+      "value": "chocolate dessert",
+      "updated": "2026-05-14"
     }
   },
   "projects": {
     "projects_folder": {
       "value": "/home/pocho/Projects/",
-      "updated": "2026-05-13"
+      "updated": "2026-05-14"
+    },
+    "JarvisPocho": {
+      "value": "/home/pocho/Projects/JarvisPocho — AI voice assistant (this project)",
+      "updated": "2026-05-14"
+    },
+    "miomarchy": {
+      "value": "/home/pocho/Projects/miomarchy — Omarchy desktop config/customization",
+      "updated": "2026-05-14"
+    },
+    "Portfolio": {
+      "value": "/home/pocho/Projects/Portfolio — Personal portfolio website",
+      "updated": "2026-05-14"
     }
   },
   "notes": {
@@ -65,5 +69,10 @@
       "updated": "2026-05-14"
     }
   },
-  "wishes": {}
+  "wishes": {
+    "open_opencode": {
+      "value": "Cuando diga 'abra opencode': 1) computer_control action=hotkey keys=SUPER+RETURN para abrir terminal, 2) esperar 1 segundo, 3) computer_control action=type text='opencode', 4) computer_control action=press key=enter",
+      "updated": "2026-05-14"
+    }
+  }
 }
