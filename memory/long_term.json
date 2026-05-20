@@ -1,32 +1,42 @@
 {
   "identity": {
     "nicknames": {
-      "value": "Joseph y Pocho",
-      "updated": "2026-05-14"
-    }
-  },
-  "preferences": {
-    "favorite_dessert": {
-      "value": "chocolate dessert",
+      "value": "jefe",
       "updated": "2026-05-14"
     }
   },
   "projects": {
     "projects_folder": {
-      "value": "/home/pocho/Projects/",
-      "updated": "2026-05-14"
+      "value": "/home/pocho/Projects/ — todos los proyectos (U y personales)",
+      "updated": "2026-05-20"
     },
     "JarvisPocho": {
-      "value": "/home/pocho/Projects/JarvisPocho — AI voice assistant (this project)",
-      "updated": "2026-05-14"
+      "value": "Python/PyQt6 — Asistente AI de escritorio con voz, visión, control del sistema y automatización. Arch Linux + Hyprland.",
+      "updated": "2026-05-20"
+    },
+    "api_pasajeros_redis": {
+      "value": "Python/FastAPI — REST API de rutas y tarifas de transporte público. MongoDB + Redis (cache). Uvicorn.",
+      "updated": "2026-05-20"
+    },
+    "CasoBusesEscolares": {
+      "value": "React/TypeScript/Vite — SaaS de gestión de transporte escolar. 4 roles (Admin, Empresa, Apoderado, Conductor). Tailwind + shadcn/ui.",
+      "updated": "2026-05-20"
+    },
+    "ComoCaidoDelCielo": {
+      "value": "React/TypeScript/Vite — Sitio web inmersivo de destino turístico en Nicoya, Guanacaste. Supabase + n8n + Framer Motion.",
+      "updated": "2026-05-20"
+    },
+    "Implementar_funcionalidad_solicitada": {
+      "value": "React/TypeScript/Vite — Esqueleto generado con Figma Make, sin funcionalidad implementada. Template base.",
+      "updated": "2026-05-20"
     },
     "miomarchy": {
-      "value": "/home/pocho/Projects/miomarchy — Omarchy desktop config/customization",
-      "updated": "2026-05-14"
+      "value": "Documentación Markdown de configuración y troubleshooting de Arch Linux + Hyprland (Omarchy).",
+      "updated": "2026-05-20"
     },
     "Portfolio": {
-      "value": "/home/pocho/Projects/Portfolio — Personal portfolio website",
-      "updated": "2026-05-14"
+      "value": "React/JS/Vite — Portfolio personal interactivo (Joseph Fonseca). i18next EN/ES, Framer Motion, GSAP, EmailJS, Vercel.",
+      "updated": "2026-05-20"
     }
   },
   "notes": {
@@ -60,12 +70,6 @@
     },
     "terminal_keybinding": {
       "value": "SUPER+RETURN",
-      "updated": "2026-05-14"
-    }
-  },
-  "relationships": {
-    "friend_name": {
-      "value": "Juanito",
       "updated": "2026-05-14"
     }
   },

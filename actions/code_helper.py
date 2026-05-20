@@ -227,7 +227,7 @@ def _run_file(path: Path, args: list, timeout: int) -> str:
 
 def _build(description, language, output_path, args, timeout, speak=None, player=None) -> str:
     if not description:
-        return "Please describe what you want me to build, sir."
+        return "Please describe what you want me to build, jefe."
 
     if player:
         player.write_log("[Code] Build started...")
@@ -252,7 +252,7 @@ def _build(description, language, output_path, args, timeout, speak=None, player
 
         if not _has_error(last_output):
             msg = (
-                f"Build complete, sir. "
+                f"Build complete, jefe. "
                 f"The code is working after {attempt} attempt{'s' if attempt > 1 else ''}. "
                 f"Saved to {path}."
             )
@@ -272,7 +272,7 @@ def _build(description, language, output_path, args, timeout, speak=None, player
             return msg
 
     msg = (
-        f"I was unable to build a working version after {MAX_BUILD_ATTEMPTS} attempts, sir. "
+        f"I was unable to build a working version after {MAX_BUILD_ATTEMPTS} attempts, jefe. "
         f"The last error was: {last_output[:200]}"
     )
     if speak: speak(msg)
@@ -280,7 +280,7 @@ def _build(description, language, output_path, args, timeout, speak=None, player
 
 def _write_action(description, language, output_path, player) -> str:
     if not description:
-        return "Please describe what you want me to write, sir."
+        return "Please describe what you want me to write, jefe."
     if player:
         player.write_log("[Code] Writing code...")
     try:
@@ -293,9 +293,9 @@ def _write_action(description, language, output_path, player) -> str:
 
 def _edit_action(file_path, instruction, player) -> str:
     if not file_path:
-        return "Please provide a file path to edit, sir."
+        return "Please provide a file path to edit, jefe."
     if not instruction:
-        return "Please describe what change to make, sir."
+        return "Please describe what change to make, jefe."
 
     content, err = _read_file(file_path)
     if err:
@@ -333,7 +333,7 @@ def _explain_action(file_path, code, player) -> str:
         if err:
             return err
     if not code:
-        return "Please provide code or a file path to explain, sir."
+        return "Please provide code or a file path to explain, jefe."
 
     if player:
         player.write_log("[Code] Analyzing code...")
@@ -357,7 +357,7 @@ Explanation:"""
 
 def _run_action(file_path, args, timeout, player) -> str:
     if not file_path:
-        return "Please provide a file path to run, sir."
+        return "Please provide a file path to run, jefe."
     p = Path(file_path).expanduser()
 
     # If it's a directory, redirect to run_project
@@ -379,7 +379,7 @@ def _optimize_action(file_path, code, language, output_path, player) -> str:
         if err:
             return err
     if not code:
-        return "Please provide code or a file path to optimize, sir."
+        return "Please provide code or a file path to optimize, jefe."
 
     if player:
         player.write_log("[Code] Optimizing code...")
@@ -438,7 +438,7 @@ def _screen_debug_action(description, file_path, player, speak=None) -> str:
 
     screenshot_path = _take_screenshot()
     if not screenshot_path:
-        return "Could not take screenshot, sir. Please make sure PyAutoGUI is installed."
+        return "Could not take screenshot, jefe. Please make sure PyAutoGUI is installed."
 
 
     file_content = ""
