@@ -180,12 +180,14 @@ TOOL_DECLARATIONS = [
     {
         "name": "computer_settings",
         "description": (
-            "Controls the computer: volume, brightness, window management, keyboard shortcuts, "
-            "typing text on screen, closing apps, fullscreen, dark mode, WiFi, restart, shutdown, "
-            "scrolling, tab management, zoom, screenshots, lock screen, refresh/reload page, "
-            "opening file browser (action='open' with description=path). "
-            "Use action='close_window_by_name' with description=window_name to close a specific window by title. "
-            "Use for ANY single computer control command. NEVER route to agent_task."
+            "Controls the computer: volume, brightness, dark mode, WiFi, restart, shutdown, "
+            "keyboard shortcuts (tab management, zoom, copy/paste, undo/redo, save), "
+            "typing text on screen (action='type' with text='...'), closing apps/windows, fullscreen, "
+            "scrolling, screenshots, lock screen, refresh/reload page, opening file browser. "
+            "Use action='close_window_by_name' with description=window_name to close a specific window. "
+            "Do NOT use for: workspace switching, moving windows to workspaces, or monitor/screen layout "
+            "(use computer_control action=hotkey for those). "
+            "NEVER route to agent_task. If action is unknown, try computer_control instead."
         ),
         "parameters": {
             "type": "OBJECT",
@@ -311,7 +313,7 @@ TOOL_DECLARATIONS = [
     },
     {
         "name": "computer_control",
-        "description": "Direct computer control: type, click, hotkeys, scroll, move mouse, screenshots, find elements on screen.",
+        "description": "Direct computer control: type, click, hotkeys, scroll, move mouse, screenshots, find elements on screen. Use for workspace switching (SUPER+1..9), moving windows to workspaces (SUPER+SHIFT+1..9), monitor layout, and any key combination.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
