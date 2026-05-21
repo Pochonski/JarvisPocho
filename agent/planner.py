@@ -126,6 +126,11 @@ code_helper
 dev_agent
   description: string (required)
   language: string (optional)
+
+opencode_runner
+  project: string (required) — project folder name inside ~/Projects/
+  message: string (required) — message/command to send to opencode
+  show_terminal: boolean (optional) — open visible terminal at project path
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"

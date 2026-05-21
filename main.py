@@ -17,6 +17,7 @@ from memory.memory_manager import (
 from actions.file_processor import file_processor
 from actions.flight_finder     import flight_finder
 from actions.open_app          import open_app
+from actions.opencode_runner   import run_with_opencode
 from actions.weather_report    import weather_action
 from actions.send_message      import send_message
 from actions.reminder          import reminder
@@ -482,6 +483,25 @@ TOOL_DECLARATIONS = [
             "required": ["category", "key", "value"]
         }
     },
+    {
+        "name": "opencode_runner",
+        "description": (
+            "Runs opencode in a project directory with a message and returns its response. "
+            "Use when the user says 'corre X proyecto con opencode', 'abre opencode en X', "
+            "'ejecuta X con opencode', or wants to delegate a coding task to opencode. "
+            "Set show_terminal=true ONLY if the user explicitly asks to see the terminal "
+            "('muestrame', 'abre la terminal', 'quiero ver'). Otherwise leave as false."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "project":       {"type": "STRING", "description": "Project folder name inside ~/Projects/ (e.g. 'Portfolio', 'JarvisPocho')"},
+                "message":       {"type": "STRING", "description": "The message or command to send to opencode (e.g. 'corre el proyecto', 'fix the bug in auth.py')"},
+                "show_terminal": {"type": "BOOLEAN", "description": "Open a visible terminal at the project path. Only set true if user explicitly asks to see it."},
+            },
+            "required": ["project", "message"]
+        }
+    },
 ]
 
 class JarvisLive:
@@ -671,6 +691,10 @@ class JarvisLive:
 
             elif name == "game_updater":
                 r = await loop.run_in_executor(None, lambda: game_updater(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Done."
+
+            elif name == "opencode_runner":
+                r = await loop.run_in_executor(None, lambda: run_with_opencode(parameters=args, player=self.ui))
                 result = r or "Done."
 
             elif name == "flight_finder":
