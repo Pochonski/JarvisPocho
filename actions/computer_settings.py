@@ -555,33 +555,106 @@ def shutdown_computer():
     else:
         subprocess.run(["systemctl", "poweroff"], capture_output=True)
 
+# Canonical action name → list of accepted input names (canonical + aliases)
+ACTION_ALIASES: dict[str, list[str]] = {
+    # Audio
+    "volume_up":              ["volume_up", "increase_volume", "raise_volume"],
+    "volume_down":            ["volume_down", "decrease_volume", "lower_volume"],
+    "volume_mute":            ["volume_mute", "mute", "unmute", "toggle_mute"],
+    "volume_set":             ["volume_set", "set_volume"],
+    # Display
+    "brightness_up":          ["brightness_up", "increase_brightness", "raise_brightness"],
+    "brightness_down":        ["brightness_down", "decrease_brightness", "lower_brightness"],
+    "sleep_display":          ["sleep_display", "screen_off", "display_off", "turn_off_screen"],
+    # Media
+    "pause_video":            ["pause_video", "play_pause", "pause", "resume"],
+    # Window
+    "close_app":              ["close_app", "close_application", "quit_app", "kill_app"],
+    "close_window":           ["close_window", "close_current_window"],
+    "close_window_by_name":   ["close_window_by_name", "close_by_name", "close_window_named"],
+    "full_screen":            ["full_screen", "fullscreen", "toggle_fullscreen"],
+    "minimize_window":        ["minimize_window", "minimize", "minimise"],
+    "maximize_window":        ["maximize_window", "maximize", "maximise"],
+    "snap_left":              ["snap_left", "window_left", "tile_left"],
+    "snap_right":             ["snap_right", "window_right", "tile_right"],
+    "switch_window":          ["switch_window", "alt_tab", "switch_app"],
+    "show_desktop":           ["show_desktop", "desktop", "peek_desktop"],
+    # System
+    "open_task_manager":      ["open_task_manager", "task_manager", "system_monitor"],
+    "focus_search":           ["focus_search", "search_bar", "focus_address_bar"],
+    # Browser
+    "refresh_page":           ["refresh_page", "reload", "refresh", "reload_page"],
+    "close_tab":              ["close_tab", "close_current_tab"],
+    "new_tab":                ["new_tab", "open_tab", "open_new_tab"],
+    "next_tab":               ["next_tab", "switch_to_next_tab"],
+    "prev_tab":               ["prev_tab", "previous_tab", "switch_to_previous_tab"],
+    "go_back":                ["go_back", "back", "browser_back"],
+    "go_forward":             ["go_forward", "forward", "browser_forward"],
+    "zoom_in":                ["zoom_in", "zoom_increase"],
+    "zoom_out":               ["zoom_out", "zoom_decrease"],
+    "zoom_reset":             ["zoom_reset", "reset_zoom"],
+    "find_on_page":           ["find_on_page", "find", "search_page", "find_in_page"],
+    # Scrolling
+    "scroll_up":              ["scroll_up", "scroll_upward"],
+    "scroll_down":            ["scroll_down", "scroll_downward"],
+    "scroll_top":             ["scroll_top", "scroll_to_top", "go_to_top"],
+    "scroll_bottom":          ["scroll_bottom", "scroll_to_bottom", "go_to_bottom"],
+    "page_up":                ["page_up"],
+    "page_down":              ["page_down"],
+    # Clipboard
+    "copy":                   ["copy"],
+    "paste":                  ["paste"],
+    "cut":                    ["cut"],
+    "undo":                   ["undo"],
+    "redo":                   ["redo"],
+    "select_all":             ["select_all"],
+    "save_file":              ["save_file", "save"],
+    # Keyboard
+    "press_enter":            ["press_enter", "enter", "hit_enter"],
+    "press_escape":           ["press_escape", "escape", "hit_escape"],
+    # Parametrized (take value/text/key)
+    "type_text":              ["type_text", "write_on_screen", "type", "write"],
+    "press_key":              ["press_key"],
+    "reload_n":               ["reload_n", "refresh_n", "reload_page_n"],
+    # System (cont)
+    "take_screenshot":        ["take_screenshot", "screenshot", "screen_capture", "capture_screen"],
+    "lock_screen":            ["lock_screen", "lock", "lock_computer"],
+    "open_system_settings":   ["open_system_settings", "open_settings", "settings", "system_settings"],
+    "open_file_explorer":     ["open_file_explorer", "file_explorer", "open_file_browser", "open", "file_manager"],
+    "open_run":               ["open_run", "run_dialog"],
+    "dark_mode":              ["dark_mode", "toggle_dark_mode", "night_mode"],
+    "toggle_wifi":            ["toggle_wifi", "wifi", "toggle_wireless"],
+    "restart_computer":       ["restart_computer", "restart", "reboot"],
+    "shutdown_computer":      ["shutdown_computer", "shutdown", "power_off", "turn_off_computer"],
+}
+
+# Reverse lookup: any accepted alias → canonical action name
+_ALIAS_TO_CANONICAL: dict[str, str] = {}
+for _canonical, _aliases in ACTION_ALIASES.items():
+    for _alias in _aliases:
+        _ALIAS_TO_CANONICAL[_alias] = _canonical
+
+# Maps canonical action name → callable (parameterless functions only)
 ACTION_MAP: dict[str, callable] = {
     "volume_up":           volume_up,
     "volume_down":         volume_down,
-    "mute":                volume_mute,
-    "unmute":              volume_mute,
-    "toggle_mute":         volume_mute,
+    "volume_mute":         volume_mute,
     "brightness_up":       brightness_up,
     "brightness_down":     brightness_down,
     "sleep_display":       sleep_display,
-    "screen_off":          sleep_display,
     "pause_video":         pause_video,
-    "play_pause":          pause_video,
     "close_app":           close_app,
     "close_window":        close_window,
-    "close_window_by_name": close_window_by_name,
     "full_screen":         full_screen,
-    "fullscreen":          full_screen,
-    "minimize":            minimize_window,
-    "maximize":            maximize_window,
+    "minimize_window":     minimize_window,
+    "maximize_window":     maximize_window,
     "snap_left":           snap_left,
     "snap_right":          snap_right,
     "switch_window":       switch_window,
     "show_desktop":        show_desktop,
-    "task_manager":        open_task_manager,
+    "open_task_manager":   open_task_manager,
     "focus_search":        focus_search,
     "refresh_page":        refresh_page,
-    "reload":              refresh_page,
     "close_tab":           close_tab,
     "new_tab":             new_tab,
     "next_tab":            next_tab,
@@ -592,8 +665,6 @@ ACTION_MAP: dict[str, callable] = {
     "zoom_out":            zoom_out,
     "zoom_reset":          zoom_reset,
     "find_on_page":        find_on_page,
-    "scroll_up":           scroll_up,
-    "scroll_down":         scroll_down,
     "scroll_top":          scroll_top,
     "scroll_bottom":       scroll_bottom,
     "page_up":             page_up,
@@ -604,23 +675,20 @@ ACTION_MAP: dict[str, callable] = {
     "undo":                undo,
     "redo":                redo,
     "select_all":          select_all,
-    "save":                save_file,
-    "enter":               press_enter,
-    "escape":              press_escape,
-    "screenshot":          take_screenshot,
+    "save_file":           save_file,
+    "press_enter":         press_enter,
+    "press_escape":        press_escape,
+    "take_screenshot":     take_screenshot,
     "lock_screen":         lock_screen,
-    "open_settings":       open_system_settings,
-    "file_explorer":       open_file_explorer,
-    "open_file_browser":   open_file_explorer,
-    "open":                open_file_explorer,
+    "open_system_settings": open_system_settings,
     "open_run":            open_run,
     "dark_mode":           dark_mode,
     "toggle_wifi":         toggle_wifi,
-    "restart":             restart_computer,
-    "shutdown":            shutdown_computer,
+    "restart_computer":    restart_computer,
+    "shutdown_computer":   shutdown_computer,
 }
 
-_DANGEROUS_ACTIONS = {"restart", "shutdown"}
+_DANGEROUS_ACTIONS = {"restart_computer", "shutdown_computer"}
 
 
 
@@ -630,8 +698,7 @@ def _detect_action(description: str) -> dict:
     genai.configure(api_key=_get_api_key())
     model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
-    available = ", ".join(sorted(ACTION_MAP.keys())) + \
-                ", volume_set, type_text, press_key, reload_n"
+    available = ", ".join(sorted(_ALIAS_TO_CANONICAL.keys()))
 
     prompt = f"""You are an intent detector for a computer control assistant.
 
@@ -684,26 +751,33 @@ def computer_settings(
     if not action:
         return "No action could be determined."
 
-    print(f"[Settings] Action: {action}  Value: {value}  OS: {_OS}")
-    if player:
-        player.write_log(f"[Settings] {action}")
+    # Resolve alias → canonical action name
+    canonical = _ALIAS_TO_CANONICAL.get(action)
+    if not canonical:
+        return f"Unknown action: '{raw_action}'."
 
-    if action in _DANGEROUS_ACTIONS:
+    print(f"[Settings] Action: {canonical}  Value: {value}  OS: {_OS}")
+    if player:
+        player.write_log(f"[Settings] {canonical}")
+
+    if canonical in _DANGEROUS_ACTIONS:
         confirmed = str(params.get("confirmed", "")).lower()
         if confirmed not in ("yes", "true", "1", "confirm"):
             return (
-                f"This will {action} the computer. "
+                f"This will {canonical} the computer. "
                 f"Please confirm by calling again with confirmed=yes."
             )
 
-    if action == "volume_set":
+    # ── Parametrized actions (require value/text/key) ──
+
+    if canonical == "volume_set":
         try:
             volume_set(int(value or 50))
             return f"Volume set to {value}%."
         except Exception as e:
             return f"Could not set volume: {e}"
 
-    if action in ("type_text", "write_on_screen", "type", "write"):
+    if canonical == "type_text":
         text = str(value or params.get("text", "")).strip()
         if not text:
             return "No text provided to type."
@@ -711,30 +785,35 @@ def computer_settings(
         type_text(text, press_enter_after=enter_after)
         return f"Typed: {text[:80]}"
 
-    if action == "press_key":
+    if canonical == "press_key":
         key = str(value or params.get("key", "")).strip()
         if not key:
             return "No key specified."
         press_key(key)
         return f"Pressed: {key}"
 
-    if action in ("reload_n", "refresh_n", "reload_page_n"):
+    if canonical == "reload_n":
         try:
             reload_page_n(int(value or 1))
             return f"Reloaded {value or 1} time(s)."
         except Exception as e:
             return f"Reload failed: {e}"
 
-    if action == "scroll_up":
+    if canonical == "scroll_up":
         scroll_up(int(value or 500))
         return "Scrolled up."
 
-    if action == "scroll_down":
+    if canonical == "scroll_down":
         scroll_down(int(value or 500))
         return "Scrolled down."
 
-    if action in ("file_explorer", "open_file_browser", "open"):
-        # Check if there's a specific path to open
+    if canonical == "close_window_by_name":
+        window_name = str(value or description or "").strip()
+        if not window_name:
+            return "No window name provided. Use value or description to specify the window name."
+        return close_window_by_name(window_name)
+
+    if canonical == "open_file_explorer":
         path = value or params.get("path", "")
         if not path and description:
             import re
@@ -746,13 +825,15 @@ def computer_settings(
         open_file_explorer()
         return "Opened file browser."
 
-    func = ACTION_MAP.get(action)
+    # ── Parameterless actions ──
+
+    func = ACTION_MAP.get(canonical)
     if not func:
         return f"Unknown action: '{raw_action}'."
 
     try:
         func()
-        return f"Done: {action}."
+        return f"Done: {canonical}."
     except Exception as e:
-        print(f"[Settings] Action failed ({action}): {e}")
-        return f"Action failed ({action}): {e}"
+        print(f"[Settings] Action failed ({canonical}): {e}")
+        return f"Action failed ({canonical}): {e}"
