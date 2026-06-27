@@ -5,10 +5,14 @@ from pathlib import Path
 PROJECTS_DIR = Path.home() / "Projects"
 
 
-def _launch_terminal(project_path: Path) -> None:
+def _launch_terminal(project_path: Path, message: str) -> None:
     env = os.environ.copy()
     subprocess.Popen(
-        ["uwsm-app", "--", "xdg-terminal-exec", "--dir", str(project_path)],
+        [
+            "uwsm-app", "--", "xdg-terminal-exec",
+            f"--dir={project_path}",
+            "opencode", str(project_path), "--prompt", message,
+        ],
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -46,7 +50,8 @@ def run_with_opencode(
             )
 
     if show_terminal:
-        _launch_terminal(project_path)
+        _launch_terminal(project_path, message)
+        return f"OpenCode launched in '{project}' with your message."
 
     cmd = ["opencode", "run", message, "--dir", str(project_path)]
 

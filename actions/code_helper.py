@@ -5,6 +5,8 @@ import re
 import time
 from pathlib import Path
 
+from providers import generate as opencode_generate
+
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
@@ -15,18 +17,11 @@ BASE_DIR           = get_base_dir()
 API_CONFIG_PATH    = BASE_DIR / "config" / "api_keys.json"
 DESKTOP            = Path.home() / "Desktop"
 MAX_BUILD_ATTEMPTS = 3
-GEMINI_MODEL       = "gemini-2.5-flash"
 
 
 def _get_api_key() -> str:
     with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)["gemini_api_key"]
-
-
-def _get_gemini(model: str = GEMINI_MODEL):
-    import google.generativeai as genai
-    genai.configure(api_key=_get_api_key())
-    return genai.GenerativeModel(model)
 
 
 def _clean_code(text: str) -> str:
@@ -146,7 +141,6 @@ def _detect_intent(description: str, file_path: str, code: str) -> str:
 
 def _write(description: str, language: str, output_path: str, player=None) -> tuple[str, Path]:
     lang  = language or "python"
-    model = _get_gemini()
 
     prompt = f"""You are an expert {lang} developer.
 Write clean, working, well-commented {lang} code for the description below.
@@ -161,15 +155,14 @@ Description: {description}
 
 Code:"""
 
-    response = model.generate_content(prompt)
-    code     = _clean_code(response.text)
+    response = opencode_generate(prompt)
+    code     = _clean_code(response)
     path     = _resolve_save_path(output_path, lang)
     _save_file(path, code)
     return code, path
 
 
 def _fix_code(code: str, error_output: str, description: str) -> str:
-    model  = _get_gemini()
     prompt = f"""You are an expert debugger.
 The code below failed with the following error. Fix it.
 Return ONLY the corrected code — no explanation, no markdown, no backticks.
@@ -184,8 +177,8 @@ Broken code:
 
 Fixed code:"""
 
-    response = model.generate_content(prompt)
-    return _clean_code(response.text)
+    response = opencode_generate(prompt)
+    return _clean_code(response)
 
 
 def _run_file(path: Path, args: list, timeout: int) -> str:
@@ -304,7 +297,6 @@ def _edit_action(file_path, instruction, player) -> str:
     if player:
         player.write_log("[Code] Editing file...")
 
-    model  = _get_gemini()
     prompt = f"""You are an expert code editor.
 Apply the following change to the code below.
 Return ONLY the complete updated code — no explanation, no markdown, no backticks.
@@ -317,8 +309,8 @@ Original code:
 Updated code:"""
 
     try:
-        response = model.generate_content(prompt)
-        edited   = _clean_code(response.text)
+        response = opencode_generate(prompt)
+        edited   = _clean_code(response)
     except Exception as e:
         return f"Could not edit code: {e}"
 
@@ -338,7 +330,6 @@ def _explain_action(file_path, code, player) -> str:
     if player:
         player.write_log("[Code] Analyzing code...")
 
-    model  = _get_gemini()
     prompt = f"""Explain what this code does in simple, clear language.
 Focus on: what it does, how it works, and any important details.
 Be concise — 3 to 6 sentences maximum.
@@ -349,8 +340,8 @@ Code:
 Explanation:"""
 
     try:
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        response = opencode_generate(prompt)
+        return response.strip()
     except Exception as e:
         return f"Could not explain code: {e}"
 
@@ -385,7 +376,6 @@ def _optimize_action(file_path, code, language, output_path, player) -> str:
         player.write_log("[Code] Optimizing code...")
 
     lang  = language or "python"
-    model = _get_gemini()
 
     prompt = f"""You are an expert {lang} developer and code reviewer.
 Optimize the following code for:
@@ -402,8 +392,8 @@ Original code:
 Optimized code:"""
 
     try:
-        response  = model.generate_content(prompt)
-        optimized = _clean_code(response.text)
+        response  = opencode_generate(prompt)
+        optimized = _clean_code(response)
     except Exception as e:
         return f"Could not optimize code: {e}"
 

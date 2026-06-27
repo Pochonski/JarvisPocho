@@ -27,7 +27,7 @@ def _get_api_key() -> str:
         return json.load(f)["gemini_api_key"]
 
 def _run_generated_code(description: str, speak: Callable | None = None) -> str:
-    import google.generativeai as genai
+    from providers import generate as opencode_generate
 
     if speak:
         speak("Writing custom code for this task, jefe.")
@@ -46,28 +46,25 @@ def _run_generated_code(description: str, speak: Callable | None = None) -> str:
         except Exception:
             pass
 
-    genai.configure(api_key=_get_api_key())
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        system_instruction=(
-            "You are an expert Python developer. "
-            "Write clean, complete, working Python code. "
-            "Use standard library + common packages. "
-            "Install missing packages with subprocess + pip if needed. "
-            "Return ONLY the Python code. No explanation, no markdown, no backticks.\n\n"
-            f"SYSTEM PATHS:\n"
-            f"  Desktop   = r'{desktop}'\n"
-            f"  Downloads = r'{downloads}'\n"
-            f"  Documents = r'{documents}'\n"
-            f"  Home      = r'{home}'\n"
-        )
+    system_prompt = (
+        "You are an expert Python developer. "
+        "Write clean, complete, working Python code. "
+        "Use standard library + common packages. "
+        "Install missing packages with subprocess + pip if needed. "
+        "Return ONLY the Python code. No explanation, no markdown, no backticks.\n\n"
+        f"SYSTEM PATHS:\n"
+        f"  Desktop   = r'{desktop}'\n"
+        f"  Downloads = r'{downloads}'\n"
+        f"  Documents = r'{documents}'\n"
+        f"  Home      = r'{home}'\n"
     )
 
     try:
-        response = model.generate_content(
-            f"Write Python code to accomplish this task:\n\n{description}"
+        response = opencode_generate(
+            f"Write Python code to accomplish this task:\n\n{description}",
+            system_prompt=system_prompt,
         )
-        code = response.text.strip()
+        code = response.strip()
         code = re.sub(r"```(?:python)?", "", code).strip().rstrip("`").strip()
 
         with tempfile.NamedTemporaryFile(
